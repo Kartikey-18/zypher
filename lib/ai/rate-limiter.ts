@@ -13,7 +13,7 @@ export interface RateLimitInfo {
 }
 
 const RATE_LIMIT_KEY = 'zypher_ai_rate_limit';
-const MAX_REQUESTS = 5;
+const MAX_REQUESTS = 999; // Increased for testing
 const RESET_HOURS = 24;
 
 interface RateLimitData {

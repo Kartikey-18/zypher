@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ArrowLeft, Download, Info, Zap, Lock, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, Download, Info, Zap, Lock, Image as ImageIcon, Upload, Play, Pause, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import AudioRecorder from "@/components/audio/AudioRecorder";
 import { ART_STYLES } from "@/lib/ai/styles";
 import { checkRateLimit, incrementRateLimit, getTimeUntilReset, RateLimitInfo } from "@/lib/ai/rate-limiter";
 import { RecordingResult } from "@/lib/audio/recorder";
-import { encodeAudioInImage, dataURLToBlob, checkBackendStatus } from "@/lib/audio/steganography";
+import { encodeAudioInImage, dataURLToBlob, checkBackendStatus, decodeAudioFromImage } from "@/lib/audio/steganography";
 
 type WorkflowStep = 'record' | 'generate' | 'encode' | 'complete';
 
@@ -29,6 +29,14 @@ export default function AIArtVaultPage() {
   const [isEncoding, setIsEncoding] = useState(false);
   const [encodedImage, setEncodedImage] = useState<string | null>(null);
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
+
+  // Decode state
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [uploadedImagePreview, setUploadedImagePreview] = useState<string | null>(null);
+  const [isDecoding, setIsDecoding] = useState(false);
+  const [decodedAudio, setDecodedAudio] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     setRateLimit(checkRateLimit());
@@ -145,6 +153,69 @@ export default function AIArtVaultPage() {
     setMetadata(null);
     setError(null);
     setPrompt("");
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file');
+      return;
+    }
+
+    setUploadedImage(file);
+    setUploadedImagePreview(URL.createObjectURL(file));
+    setDecodedAudio(null);
+    setError(null);
+  };
+
+  const handleDecode = async () => {
+    if (!uploadedImage) {
+      setError('Please upload an image first');
+      return;
+    }
+
+    if (!backendAvailable) {
+      setError('Python backend not available. Please start the backend server.');
+      return;
+    }
+
+    setIsDecoding(true);
+    setError(null);
+
+    try {
+      const result = await decodeAudioFromImage(uploadedImage);
+      setDecodedAudio(result.url);
+    } catch (err: any) {
+      console.error('Decoding error:', err);
+      setError(err.message || 'Failed to decode audio from image');
+    } finally {
+      setIsDecoding(false);
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const handleDownloadAudio = () => {
+    if (!decodedAudio) return;
+
+    const link = document.createElement('a');
+    link.href = decodedAudio;
+    link.download = `zypher-decoded-${Date.now()}.wav`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -391,6 +462,175 @@ export default function AIArtVaultPage() {
                       {currentStep === 'record' && "Record or upload audio to begin"}
                       {currentStep === 'generate' && "Generate AI artwork for your voice message"}
                       {currentStep === 'encode' && "Encode your audio into the artwork"}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Decode Section */}
+      <div className="container mx-auto px-4 py-16 border-t">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold mb-3">
+              <span className="bg-gradient-to-r from-destructive to-primary bg-clip-text text-transparent">
+                Extract Hidden Audio
+              </span>
+            </h2>
+            <p className="text-muted-foreground">
+              Upload an encoded image to reveal and play the hidden voice message
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Upload Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Encoded Image</CardTitle>
+                <CardDescription>
+                  Choose an image that contains a hidden audio message
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                  {uploadedImagePreview ? (
+                    <div className="space-y-4">
+                      <img
+                        src={uploadedImagePreview}
+                        alt="Uploaded"
+                        className="max-h-64 mx-auto rounded-lg"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setUploadedImage(null);
+                          setUploadedImagePreview(null);
+                          setDecodedAudio(null);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-sm font-medium mb-1">Click to upload image</p>
+                      <p className="text-xs text-muted-foreground">PNG or JPEG format</p>
+                    </label>
+                  )}
+                </div>
+
+                <Button
+                  onClick={handleDecode}
+                  disabled={!uploadedImage || isDecoding || !backendAvailable}
+                  size="lg"
+                  className="w-full"
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  {isDecoding ? 'Extracting Audio...' : 'Extract Hidden Audio'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Decode Result Section */}
+            <div className="space-y-6">
+              {isDecoding && (
+                <Card className="border-2 border-primary">
+                  <CardContent className="p-6">
+                    <div className="text-center space-y-3">
+                      <div className="text-4xl">🔓</div>
+                      <div className="font-semibold">Extracting Hidden Audio</div>
+                      <div className="text-sm text-muted-foreground">
+                        Reading steganographic data from image pixels...
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {decodedAudio && (
+                <Card className="border-2 border-green-500">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-green-500" />
+                      Audio Extracted Successfully!
+                    </CardTitle>
+                    <CardDescription>
+                      The hidden voice message has been revealed
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-muted rounded-lg p-6">
+                      <audio
+                        ref={audioRef}
+                        src={decodedAudio}
+                        onEnded={() => setIsPlaying(false)}
+                        className="hidden"
+                      />
+                      <div className="flex items-center justify-center gap-4">
+                        <Button
+                          onClick={togglePlayPause}
+                          size="lg"
+                          variant="default"
+                          className="w-full"
+                        >
+                          {isPlaying ? (
+                            <>
+                              <Pause className="w-5 h-5 mr-2" />
+                              Pause
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-5 h-5 mr-2" />
+                              Play Audio
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={handleDownloadAudio}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Audio
+                    </Button>
+
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <div className="text-sm space-y-2">
+                        <div className="font-semibold text-green-900 dark:text-green-200">
+                          ✓ Decoding successful!
+                        </div>
+                        <div className="text-green-800 dark:text-green-300">
+                          The secret voice message was hidden using LSB steganography and has been successfully extracted.
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!isDecoding && !decodedAudio && (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+                      <Volume2 className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-semibold mb-2">No Audio Extracted Yet</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm">
+                      Upload an encoded image to extract and play the hidden audio message
                     </p>
                   </CardContent>
                 </Card>

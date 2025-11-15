@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateImage, validatePrompt } from '@/lib/ai/huggingface';
 import { buildPrompt } from '@/lib/ai/styles';
+import sharp from 'sharp';
 
 /**
  * POST /api/ai/generate
@@ -44,11 +45,18 @@ export async function POST(request: NextRequest) {
         guidanceScale: 0
       });
 
-      // Convert blob to base64 for JSON response
+      // Convert to PNG format to preserve LSB steganography data
+      // JPEG compression would destroy the hidden audio
       const arrayBuffer = await result.blob.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const base64 = buffer.toString('base64');
-      const dataUrl = `data:image/jpeg;base64,${base64}`;
+      const inputBuffer = Buffer.from(arrayBuffer);
+
+      // Convert to PNG using sharp (lossless format required for steganography)
+      const pngBuffer = await sharp(inputBuffer)
+        .png({ compressionLevel: 0 }) // No compression to preserve LSB data
+        .toBuffer();
+
+      const base64 = pngBuffer.toString('base64');
+      const dataUrl = `data:image/png;base64,${base64}`;
 
       return NextResponse.json({
         success: true,
