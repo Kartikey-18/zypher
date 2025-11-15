@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
         negativePrompt,
         width,
         height,
-        numInferenceSteps: 30,
-        guidanceScale: 7.5
+        numInferenceSteps: 4,
+        guidanceScale: 0
       });
 
       // Convert blob to base64 for JSON response
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           width: result.width,
           height: result.height,
           generationTime: result.generationTime,
-          model: 'stabilityai/stable-diffusion-2-1'
+          model: 'black-forest-labs/FLUX.1-schnell'
         }
       });
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: 'ok',
-    model: 'stabilityai/stable-diffusion-2-1',
+    model: 'black-forest-labs/FLUX.1-schnell',
     maxDimensions: { width: 1024, height: 1024 },
     rateLimit: {
       maxRequests: 5,

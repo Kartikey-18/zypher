@@ -43,16 +43,14 @@ export async function generateImage(
   const hf = new HfInference(token);
 
   try {
-    // Generate image using Stable Diffusion
+    // Generate image using FLUX (schnell is a fast model with max 4 steps)
     const result = await hf.textToImage({
-      model: 'stabilityai/stable-diffusion-2-1',
+      model: 'black-forest-labs/FLUX.1-schnell',
       inputs: options.prompt,
       parameters: {
-        negative_prompt: options.negativePrompt || 'low quality, blurry, distorted',
         width: options.width || 1024,
         height: options.height || 1024,
-        num_inference_steps: options.numInferenceSteps || 30,
-        guidance_scale: options.guidanceScale || 7.5,
+        num_inference_steps: 4,
       }
     });
 

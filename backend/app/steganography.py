@@ -98,9 +98,13 @@ def embed_audio_lsb(img: Image.Image, samples: np.ndarray, framerate: int) -> Im
     Returns:
         PIL Image with embedded audio
     """
+    # Ensure image is RGB
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
     # Create copy of image
-    img_array = np.array(img, dtype=np.uint8)
-    height, width, _ = img_array.shape
+    img_array = np.array(img, dtype=np.uint8).copy()
+    height, width, channels = img_array.shape
 
     # Validate capacity
     available_pixels = width * height - 1  # -1 for metadata pixel
@@ -199,8 +203,10 @@ def embed_audio_lsb(img: Image.Image, samples: np.ndarray, framerate: int) -> Im
                 flat_pixels[pixel_idx + 1, 0] = (flat_pixels[pixel_idx + 1, 0] & 0xF0) | ((byte2 >> 4) & 0x0F)
                 flat_pixels[pixel_idx + 1, 1] = (flat_pixels[pixel_idx + 1, 1] & 0xF0) | (byte2 & 0x0F)
 
-    # Reshape back
-    img_array.reshape(-1, 3)[1:] = flat_pixels
+    # Reshape back - properly assign the flattened pixels back to the image array
+    reshaped = img_array.reshape(-1, 3)
+    reshaped[1:] = flat_pixels
+    img_array = reshaped.reshape(height, width, 3)
 
     return Image.fromarray(img_array, mode='RGB')
 

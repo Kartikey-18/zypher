@@ -31,11 +31,99 @@ export interface DecodeResult {
 }
 
 /**
+ * Convert audio blob to WAV format
+ */
+async function convertToWAV(audioBlob: Blob): Promise<Blob> {
+  // Create an audio context
+  const audioContext = new AudioContext();
+
+  // Decode the audio data
+  const arrayBuffer = await audioBlob.arrayBuffer();
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+  // Convert to WAV
+  const wavBlob = audioBufferToWav(audioBuffer);
+
+  return wavBlob;
+}
+
+/**
+ * Convert AudioBuffer to WAV blob
+ */
+function audioBufferToWav(buffer: AudioBuffer): Blob {
+  const numberOfChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numberOfChannels * bytesPerSample;
+
+  const data = new Float32Array(buffer.length * numberOfChannels);
+
+  // Interleave channels
+  for (let i = 0; i < buffer.length; i++) {
+    for (let channel = 0; channel < numberOfChannels; channel++) {
+      const channelData = buffer.getChannelData(channel);
+      data[i * numberOfChannels + channel] = channelData[i];
+    }
+  }
+
+  const dataLength = data.length * bytesPerSample;
+  const bufferLength = 44 + dataLength;
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
+
+  // Write WAV header
+  let offset = 0;
+
+  // "RIFF" chunk descriptor
+  writeString(view, offset, 'RIFF'); offset += 4;
+  view.setUint32(offset, 36 + dataLength, true); offset += 4;
+  writeString(view, offset, 'WAVE'); offset += 4;
+
+  // "fmt " sub-chunk
+  writeString(view, offset, 'fmt '); offset += 4;
+  view.setUint32(offset, 16, true); offset += 4; // SubChunk1Size (16 for PCM)
+  view.setUint16(offset, format, true); offset += 2; // AudioFormat (1 for PCM)
+  view.setUint16(offset, numberOfChannels, true); offset += 2;
+  view.setUint32(offset, sampleRate, true); offset += 4;
+  view.setUint32(offset, sampleRate * blockAlign, true); offset += 4; // ByteRate
+  view.setUint16(offset, blockAlign, true); offset += 2;
+  view.setUint16(offset, bitDepth, true); offset += 2;
+
+  // "data" sub-chunk
+  writeString(view, offset, 'data'); offset += 4;
+  view.setUint32(offset, dataLength, true); offset += 4;
+
+  // Write audio data
+  floatTo16BitPCM(view, offset, data);
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+function writeString(view: DataView, offset: number, string: string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+function floatTo16BitPCM(view: DataView, offset: number, input: Float32Array) {
+  for (let i = 0; i < input.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, input[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+}
+
+/**
  * Encode audio into image
  */
 export async function encodeAudioInImage(options: EncodeOptions): Promise<EncodeResult> {
+  // Convert audio to WAV format
+  const wavBlob = await convertToWAV(options.audioBlob);
+
   const formData = new FormData();
-  formData.append('audio', options.audioBlob, 'audio.webm');
+  formData.append('audio', wavBlob, 'audio.wav');
   formData.append('image', options.imageBlob, 'image.png');
 
   try {
