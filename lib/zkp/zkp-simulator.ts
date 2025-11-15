@@ -37,10 +37,10 @@ export interface ProofResult {
  */
 export async function hashPasswordToBigInt(password: string): Promise<string> {
   if (typeof window !== 'undefined') {
-    // Browser environment
+    // Browser environment - use Web Crypto API
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return BigInt('0x' + hashHex).toString();
@@ -57,7 +57,7 @@ export async function hashPasswordToBigInt(password: string): Promise<string> {
 function generateNonce(): string {
   const array = new Uint8Array(16);
   if (typeof window !== 'undefined') {
-    crypto.getRandomValues(array);
+    window.crypto.getRandomValues(array);
   } else {
     crypto.randomFillSync(array);
   }
@@ -190,7 +190,7 @@ export async function verifyZKProof(
 function generateRandomFieldElement(): string {
   const bytes = new Uint8Array(32);
   if (typeof window !== 'undefined') {
-    crypto.getRandomValues(bytes);
+    window.crypto.getRandomValues(bytes);
   } else {
     crypto.randomFillSync(bytes);
   }

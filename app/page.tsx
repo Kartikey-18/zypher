@@ -42,7 +42,7 @@ export default function Home() {
               Try Live Demos <ArrowRight className="w-4 h-4" />
             </Link>
             <a
-              href="https://github.com/yourusername/zypher"
+              href="https://github.com/Kartikey-18/zypher"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 border border-input px-6 py-3 rounded-lg hover:bg-secondary transition-colors"
