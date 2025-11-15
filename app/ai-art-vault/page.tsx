@@ -1,18 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Download, Info, Zap } from "lucide-react";
+import { ArrowLeft, Download, Info, Zap, Lock, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import StyleSelector from "@/components/ai/StyleSelector";
 import PromptInput from "@/components/ai/PromptInput";
 import GenerationProgress from "@/components/ai/GenerationProgress";
+import AudioRecorder from "@/components/audio/AudioRecorder";
 import { ART_STYLES } from "@/lib/ai/styles";
 import { checkRateLimit, incrementRateLimit, getTimeUntilReset, RateLimitInfo } from "@/lib/ai/rate-limiter";
+import { RecordingResult } from "@/lib/audio/recorder";
+import { encodeAudioInImage, dataURLToBlob, checkBackendStatus } from "@/lib/audio/steganography";
+
+type WorkflowStep = 'record' | 'generate' | 'encode' | 'complete';
 
 export default function AIArtVaultPage() {
+  const [currentStep, setCurrentStep] = useState<WorkflowStep>('record');
   const [prompt, setPrompt] = useState("");
   const [selectedStyle, setSelectedStyle] = useState("photorealistic");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -20,11 +25,25 @@ export default function AIArtVaultPage() {
   const [metadata, setMetadata] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo>({ remaining: 5, total: 5 });
+  const [audioRecording, setAudioRecording] = useState<RecordingResult | null>(null);
+  const [isEncoding, setIsEncoding] = useState(false);
+  const [encodedImage, setEncodedImage] = useState<string | null>(null);
+  const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check rate limit on mount
     setRateLimit(checkRateLimit());
+    checkBackend();
   }, []);
+
+  const checkBackend = async () => {
+    const available = await checkBackendStatus();
+    setBackendAvailable(available);
+  };
+
+  const handleRecordingComplete = (result: RecordingResult) => {
+    setAudioRecording(result);
+    setCurrentStep('generate');
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -32,7 +51,6 @@ export default function AIArtVaultPage() {
       return;
     }
 
-    // Check rate limit
     const limitInfo = checkRateLimit();
     if (limitInfo.remaining <= 0) {
       setError(`Rate limit exceeded. Reset in ${getTimeUntilReset()}`);
@@ -64,8 +82,8 @@ export default function AIArtVaultPage() {
 
       setGeneratedImage(data.image);
       setMetadata(data.metadata);
+      setCurrentStep('encode');
 
-      // Update rate limit
       const newLimit = incrementRateLimit();
       setRateLimit(newLimit);
 
@@ -77,20 +95,60 @@ export default function AIArtVaultPage() {
     }
   };
 
-  const handleDownload = () => {
-    if (!generatedImage) return;
+  const handleEncode = async () => {
+    if (!audioRecording || !generatedImage) {
+      setError("Missing audio or image");
+      return;
+    }
 
+    if (!backendAvailable) {
+      setError("Python backend not available. Please start the backend server.");
+      return;
+    }
+
+    setIsEncoding(true);
+    setError(null);
+
+    try {
+      const imageBlob = dataURLToBlob(generatedImage);
+
+      const result = await encodeAudioInImage({
+        audioBlob: audioRecording.blob,
+        imageBlob: imageBlob
+      });
+
+      setEncodedImage(result.url);
+      setCurrentStep('complete');
+
+    } catch (err: any) {
+      console.error('Encoding error:', err);
+      setError(err.message || 'Failed to encode audio into image');
+    } finally {
+      setIsEncoding(false);
+    }
+  };
+
+  const handleDownloadImage = (url: string, filename: string) => {
     const link = document.createElement('a');
-    link.href = generatedImage;
-    link.download = `zypher-art-${Date.now()}.png`;
+    link.href = url;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  const handleReset = () => {
+    setCurrentStep('record');
+    setAudioRecording(null);
+    setGeneratedImage(null);
+    setEncodedImage(null);
+    setMetadata(null);
+    setError(null);
+    setPrompt("");
+  };
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
-      {/* Navigation */}
       <nav className="border-b">
         <div className="container mx-auto px-4 py-4">
           <Link href="/" className="inline-flex items-center gap-2 hover:text-primary transition-colors">
@@ -100,7 +158,6 @@ export default function AIArtVaultPage() {
         </div>
       </nav>
 
-      {/* Header */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
@@ -111,10 +168,57 @@ export default function AIArtVaultPage() {
               Voice Vault
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Generate stunning AI artwork using Stable Diffusion. Later, you'll be able to hide
-              secret voice messages inside these images using steganography.
+              Record a voice message, generate AI artwork, and hide your audio inside the image using steganography.
             </p>
           </div>
+
+          {/* Workflow Progress */}
+          <div className="mb-8 flex justify-center">
+            <div className="flex items-center gap-2 bg-muted p-2 rounded-lg">
+              {[
+                { id: 'record', label: 'Record', icon: '🎤' },
+                { id: 'generate', label: 'Generate', icon: '🎨' },
+                { id: 'encode', label: 'Encode', icon: '🔒' },
+                { id: 'complete', label: 'Complete', icon: '✅' }
+              ].map((step, index) => (
+                <div key={step.id} className="flex items-center">
+                  <div
+                    className={`px-4 py-2 rounded-md transition-all ${
+                      currentStep === step.id
+                        ? 'bg-primary text-primary-foreground'
+                        : index < ['record', 'generate', 'encode', 'complete'].indexOf(currentStep)
+                        ? 'bg-accent text-accent-foreground'
+                        : 'bg-background text-muted-foreground'
+                    }`}
+                  >
+                    <span className="mr-2">{step.icon}</span>
+                    {step.label}
+                  </div>
+                  {index < 3 && <div className="w-8 h-0.5 bg-border mx-1" />}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Backend Status */}
+          {backendAvailable === false && (
+            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <div className="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">
+                    Python Backend Not Running
+                  </div>
+                  <div className="text-yellow-800 dark:text-yellow-300">
+                    To use steganography features, start the Python backend:
+                    <code className="block mt-2 p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded font-mono text-xs">
+                      cd backend && python -m app.main
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Rate Limit Banner */}
           <div className="mb-6 p-4 bg-muted rounded-lg border">
@@ -122,7 +226,7 @@ export default function AIArtVaultPage() {
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-yellow-500" />
                 <span className="font-semibold">
-                  Generations Remaining: {rateLimit.remaining}/{rateLimit.total}
+                  AI Generations Remaining: {rateLimit.remaining}/{rateLimit.total}
                 </span>
               </div>
               {rateLimit.remaining === 0 && (
@@ -131,171 +235,166 @@ export default function AIArtVaultPage() {
                 </span>
               )}
             </div>
-            {rateLimit.remaining <= 2 && rateLimit.remaining > 0 && (
-              <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-                ⚠️ You're running low on generations. Use them wisely!
-              </div>
-            )}
           </div>
 
-          {/* Main Content Grid */}
+          {/* Main Content */}
           <div className="grid lg:grid-cols-2 gap-8">
-            {/* Left Panel - Generation Controls */}
+            {/* Left Panel */}
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Create Your Artwork</CardTitle>
-                  <CardDescription>
-                    Describe what you want to see and choose an artistic style
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <PromptInput
-                    value={prompt}
-                    onChange={setPrompt}
-                    disabled={isGenerating}
-                  />
+              {/* Step 1: Record Audio */}
+              <AudioRecorder
+                onRecordingComplete={handleRecordingComplete}
+                maxDuration={30}
+                maxSize={5 * 1024 * 1024}
+              />
 
-                  <StyleSelector
-                    styles={ART_STYLES}
-                    selectedStyle={selectedStyle}
-                    onStyleChange={setSelectedStyle}
-                    disabled={isGenerating}
-                  />
-
-                  <Button
-                    onClick={handleGenerate}
-                    disabled={isGenerating || rateLimit.remaining === 0 || !prompt.trim()}
-                    size="lg"
-                    className="w-full"
-                  >
-                    {isGenerating ? 'Generating...' : 'Generate Artwork'}
-                  </Button>
-
-                  {error && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
-                      {error}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Info Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Info className="w-5 h-5" />
-                    How It Works
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <div className="flex gap-2">
-                    <span className="font-semibold text-foreground">1.</span>
-                    <div>
-                      <strong className="text-foreground">Describe:</strong> Write what you want to see
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="font-semibold text-foreground">2.</span>
-                    <div>
-                      <strong className="text-foreground">Choose Style:</strong> Select an artistic style
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="font-semibold text-foreground">3.</span>
-                    <div>
-                      <strong className="text-foreground">Generate:</strong> AI creates your artwork
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="font-semibold text-foreground">4.</span>
-                    <div>
-                      <strong className="text-foreground">Coming Soon:</strong> Hide voice messages in your art
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right Panel - Results */}
-            <div className="space-y-6">
-              {isGenerating && <GenerationProgress isGenerating={isGenerating} />}
-
-              {generatedImage && (
+              {/* Step 2: Generate AI Art */}
+              {currentStep !== 'record' && (
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Your Artwork</CardTitle>
-                      <Button onClick={handleDownload} variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </Button>
-                    </div>
+                    <CardTitle>Generate AI Artwork</CardTitle>
+                    <CardDescription>
+                      Create beautiful artwork to hide your voice message
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="relative aspect-square rounded-lg overflow-hidden border bg-muted">
-                      <img
-                        src={generatedImage}
-                        alt="Generated artwork"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                  <CardContent className="space-y-6">
+                    <PromptInput
+                      value={prompt}
+                      onChange={setPrompt}
+                      disabled={isGenerating || currentStep === 'complete'}
+                    />
 
-                    {metadata && (
-                      <div className="space-y-2 text-sm">
-                        <div className="p-3 bg-muted rounded-lg">
-                          <div className="font-semibold mb-1">Prompt:</div>
-                          <div className="text-muted-foreground">{metadata.prompt}</div>
-                        </div>
+                    <StyleSelector
+                      styles={ART_STYLES}
+                      selectedStyle={selectedStyle}
+                      onStyleChange={setSelectedStyle}
+                      disabled={isGenerating || currentStep === 'complete'}
+                    />
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="p-2 bg-muted rounded text-center">
-                            <div className="text-xs text-muted-foreground">Style</div>
-                            <div className="font-semibold capitalize">{metadata.style}</div>
-                          </div>
-                          <div className="p-2 bg-muted rounded text-center">
-                            <div className="text-xs text-muted-foreground">Generation Time</div>
-                            <div className="font-semibold">{(metadata.generationTime / 1000).toFixed(1)}s</div>
-                          </div>
-                          <div className="p-2 bg-muted rounded text-center">
-                            <div className="text-xs text-muted-foreground">Dimensions</div>
-                            <div className="font-semibold">{metadata.width}×{metadata.height}</div>
-                          </div>
-                          <div className="p-2 bg-muted rounded text-center">
-                            <div className="text-xs text-muted-foreground">Model</div>
-                            <div className="font-semibold text-xs">SD 2.1</div>
-                          </div>
-                        </div>
-                      </div>
+                    {currentStep === 'generate' && (
+                      <Button
+                        onClick={handleGenerate}
+                        disabled={isGenerating || rateLimit.remaining === 0 || !prompt.trim()}
+                        size="lg"
+                        className="w-full"
+                      >
+                        {isGenerating ? 'Generating...' : 'Generate Artwork'}
+                      </Button>
                     )}
                   </CardContent>
                 </Card>
               )}
 
-              {!isGenerating && !generatedImage && (
+              {/* Error Display */}
+              {error && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Right Panel */}
+            <div className="space-y-6">
+              {isGenerating && <GenerationProgress isGenerating={isGenerating} />}
+
+              {generatedImage && currentStep === 'encode' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Your Artwork</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="relative aspect-square rounded-lg overflow-hidden border">
+                      <img src={generatedImage} alt="Generated" className="w-full h-full object-cover" />
+                    </div>
+
+                    <Button
+                      onClick={handleEncode}
+                      disabled={isEncoding || !backendAvailable}
+                      size="lg"
+                      className="w-full"
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      {isEncoding ? 'Encoding...' : 'Hide Voice Message in Artwork'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {isEncoding && (
+                <Card className="border-2 border-primary">
+                  <CardContent className="p-6">
+                    <div className="text-center space-y-3">
+                      <div className="text-4xl">🔒</div>
+                      <div className="font-semibold">Hiding Your Voice Message</div>
+                      <div className="text-sm text-muted-foreground">
+                        Using LSB steganography to embed audio in image pixels...
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {encodedImage && currentStep === 'complete' && (
+                <Card className="border-2 border-green-500">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-green-500" />
+                      Secret Artwork Created!
+                    </CardTitle>
+                    <CardDescription>
+                      Your voice message is now hidden inside this beautiful artwork
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-green-500">
+                      <img src={encodedImage} alt="Encoded" className="w-full h-full object-cover" />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleDownloadImage(encodedImage, `zypher-secret-${Date.now()}.png`)}
+                        size="lg"
+                        className="flex-1"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download Secret Image
+                      </Button>
+                    </div>
+
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <div className="text-sm space-y-2">
+                        <div className="font-semibold text-green-900 dark:text-green-200">
+                          ✓ Success! Your voice message is hidden
+                        </div>
+                        <div className="text-green-800 dark:text-green-300">
+                          Share this image anywhere - only those with Zypher can extract the hidden audio.
+                          The image looks normal but contains your secret voice message!
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button onClick={handleReset} variant="outline" className="w-full">
+                      Create Another
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!isGenerating && !generatedImage && !encodedImage && (
                 <Card className="border-dashed">
                   <CardContent className="flex flex-col items-center justify-center p-12 text-center">
                     <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <Zap className="w-10 h-10 text-muted-foreground" />
+                      <ImageIcon className="w-10 h-10 text-muted-foreground" />
                     </div>
-                    <h3 className="font-semibold mb-2">Ready to Create?</h3>
+                    <h3 className="font-semibold mb-2">Follow the Workflow</h3>
                     <p className="text-sm text-muted-foreground max-w-sm">
-                      Enter a prompt and choose a style, then click Generate to create your AI artwork.
+                      {currentStep === 'record' && "Record or upload audio to begin"}
+                      {currentStep === 'generate' && "Generate AI artwork for your voice message"}
+                      {currentStep === 'encode' && "Encode your audio into the artwork"}
                     </p>
                   </CardContent>
                 </Card>
               )}
-            </div>
-          </div>
-
-          {/* Coming Soon Banner */}
-          <div className="mt-12 p-6 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border-2 border-dashed border-primary/20">
-            <div className="text-center">
-              <h3 className="text-xl font-semibold mb-2">🎤 Voice Messages Coming Soon!</h3>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                In Phase 4, you'll be able to record voice messages and hide them inside your AI-generated
-                artwork using advanced steganography. Share secret messages through beautiful art!
-              </p>
             </div>
           </div>
         </div>
