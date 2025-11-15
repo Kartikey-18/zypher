@@ -13,7 +13,7 @@ An innovative web application showcasing three cutting-edge privacy technologies
 
 ## 🎯 Project Vision
 
-Zypher combines cryptography, AI, and steganography into a cohesive, portfolio-worthy platform demonstrating advanced privacy-preserving technologies. Unlike typical demos, Zypher creates a practical use case: **hiding voice messages in AI-generated artwork**.
+Zypher combines cryptography, AI, and steganography into a cohesive platform demonstrating advanced privacy-preserving technologies. Unlike typical demos, Zypher creates a practical use case: **hiding voice messages in AI-generated artwork**.
 
 ## 🏗️ Architecture
 
