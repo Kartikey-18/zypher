@@ -1,8 +1,11 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono"
+})
 
 export const metadata: Metadata = {
   title: "Zypher - Privacy Technology Platform",
@@ -22,8 +25,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" className={jetbrainsMono.variable}>
+      <body className={jetbrainsMono.className}>
+        {/* Scanlines overlay for retro terminal effect */}
+        <div className="scanlines" />
+        {children}
+      </body>
     </html>
   )
 }

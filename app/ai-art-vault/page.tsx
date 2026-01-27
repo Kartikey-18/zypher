@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Download, Info, Zap, Lock, Image as ImageIcon, Upload, Play, Pause, Volume2 } from "lucide-react";
+import { ArrowLeft, Download, Info, Zap, Lock, Image as ImageIcon, Upload, Play, Pause, Volume2, Terminal, Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import StyleSelector from "@/components/ai/StyleSelector";
 import PromptInput from "@/components/ai/PromptInput";
 import GenerationProgress from "@/components/ai/GenerationProgress";
 import AudioRecorder from "@/components/audio/AudioRecorder";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ART_STYLES } from "@/lib/ai/styles";
 import { checkRateLimit, incrementRateLimit, getTimeUntilReset, RateLimitInfo } from "@/lib/ai/rate-limiter";
 import { RecordingResult } from "@/lib/audio/recorder";
@@ -218,94 +217,113 @@ export default function AIArtVaultPage() {
     document.body.removeChild(link);
   };
 
+  const steps = [
+    { id: 'record', label: 'Record', icon: Mic },
+    { id: 'generate', label: 'Generate', icon: Sparkles },
+    { id: 'encode', label: 'Encode', icon: Lock },
+    { id: 'complete', label: 'Complete', icon: Download }
+  ];
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
-      <nav className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <Link href="/" className="inline-flex items-center gap-2 hover:text-primary transition-colors">
+    <main className="min-h-screen bg-[var(--color-surface-primary)]">
+      {/* Navigation */}
+      <nav className="border-b border-[var(--color-border-subtle)]">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors text-sm">
             <ArrowLeft className="w-4 h-4" />
-            Back to Home
+            cd ../
           </Link>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-[var(--color-purple)]" />
+              <span className="text-sm text-[var(--color-text-secondary)]">AI_ART_VAULT</span>
+            </div>
+            <ThemeToggle />
+          </div>
         </div>
       </nav>
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
+          {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-3">
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                AI Art
-              </span>{" "}
-              Voice Vault
+            <h1 className="text-4xl font-bold mb-3 text-[var(--color-text-primary)]">
+              <span className="text-[var(--color-text-muted)]">// </span>
+              <span className="text-[var(--color-cyan)]">AI Art</span>
+              <span className="text-[var(--color-text-primary)]"> Voice Vault</span>
             </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            <p className="text-[var(--color-text-muted)] text-sm max-w-2xl mx-auto">
               Record a voice message, generate AI artwork, and hide your audio inside the image using steganography.
             </p>
           </div>
 
           {/* Workflow Progress */}
           <div className="mb-8 flex justify-center">
-            <div className="flex items-center gap-2 bg-muted p-2 rounded-lg">
-              {[
-                { id: 'record', label: 'Record', icon: '🎤' },
-                { id: 'generate', label: 'Generate', icon: '🎨' },
-                { id: 'encode', label: 'Encode', icon: '🔒' },
-                { id: 'complete', label: 'Complete', icon: '✅' }
-              ].map((step, index) => (
-                <div key={step.id} className="flex items-center">
-                  <div
-                    className={`px-4 py-2 rounded-md transition-all ${
-                      currentStep === step.id
-                        ? 'bg-primary text-primary-foreground'
-                        : index < ['record', 'generate', 'encode', 'complete'].indexOf(currentStep)
-                        ? 'bg-accent text-accent-foreground'
-                        : 'bg-background text-muted-foreground'
-                    }`}
-                  >
-                    <span className="mr-2">{step.icon}</span>
-                    {step.label}
+            <div className="inline-flex items-center bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] p-1">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                const stepIndex = steps.findIndex(s => s.id === currentStep);
+                const isActive = step.id === currentStep;
+                const isCompleted = index < stepIndex;
+
+                return (
+                  <div key={step.id} className="flex items-center">
+                    <div
+                      className={`px-4 py-2 flex items-center gap-2 text-sm transition-all ${
+                        isActive
+                          ? 'bg-[color-mix(in_srgb,var(--color-cyan)_20%,transparent)] text-[var(--color-cyan)] border border-[color-mix(in_srgb,var(--color-cyan)_30%,transparent)]'
+                          : isCompleted
+                          ? 'bg-green-500/10 text-[var(--color-green)]'
+                          : 'text-[var(--color-text-muted)]'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {step.label}
+                    </div>
+                    {index < 3 && (
+                      <div className={`w-8 h-0.5 ${
+                        isCompleted ? 'bg-green-500/50' : 'bg-[var(--color-border-subtle)]'
+                      }`} />
+                    )}
                   </div>
-                  {index < 3 && <div className="w-8 h-0.5 bg-border mx-1" />}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* Backend Status */}
           {backendAvailable === false && (
-            <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              <div className="flex items-start gap-2">
-                <Info className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 border-l-2 border-l-yellow-500">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <div className="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">
-                    Python Backend Not Running
+                  <div className="font-semibold text-yellow-500 mb-1">
+                    BACKEND_NOT_RUNNING
                   </div>
-                  <div className="text-yellow-800 dark:text-yellow-300">
+                  <div className="text-[var(--color-text-secondary)]">
                     To use steganography features, start the Python backend:
-                    <code className="block mt-2 p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded font-mono text-xs">
-                      cd backend && python -m app.main
-                    </code>
                   </div>
+                  <code className="block mt-2 p-2 bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-pink)]">
+                    cd backend && python -m app.main
+                  </code>
                 </div>
               </div>
             </div>
           )}
 
           {/* Rate Limit Banner */}
-          <div className="mb-6 p-4 bg-muted rounded-lg border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-500" />
-                <span className="font-semibold">
-                  AI Generations Remaining: {rateLimit.remaining}/{rateLimit.total}
-                </span>
-              </div>
-              {rateLimit.remaining === 0 && (
-                <span className="text-sm text-muted-foreground">
-                  Resets in: {getTimeUntilReset()}
-                </span>
-              )}
+          <div className="mb-6 p-4 bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-yellow-500" />
+              <span className="text-sm text-[var(--color-text-secondary)]">
+                AI Generations: <span className="text-[var(--color-text-primary)]">{rateLimit.remaining}/{rateLimit.total}</span>
+              </span>
             </div>
+            {rateLimit.remaining === 0 && (
+              <span className="text-xs text-[var(--color-text-muted)]">
+                Resets in: {getTimeUntilReset()}
+              </span>
+            )}
           </div>
 
           {/* Main Content */}
@@ -321,14 +339,12 @@ export default function AIArtVaultPage() {
 
               {/* Step 2: Generate AI Art */}
               {currentStep !== 'record' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Generate AI Artwork</CardTitle>
-                    <CardDescription>
-                      Create beautiful artwork to hide your voice message
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
+                <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+                  <div className="border-b border-[var(--color-border-subtle)] px-4 py-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--color-purple)]" />
+                    <span className="text-sm text-[var(--color-text-secondary)]">Generate AI Artwork</span>
+                  </div>
+                  <div className="p-6 space-y-6">
                     <PromptInput
                       value={prompt}
                       onChange={setPrompt}
@@ -343,23 +359,22 @@ export default function AIArtVaultPage() {
                     />
 
                     {currentStep === 'generate' && (
-                      <Button
+                      <button
                         onClick={handleGenerate}
                         disabled={isGenerating || rateLimit.remaining === 0 || !prompt.trim()}
-                        size="lg"
-                        className="w-full"
+                        className="w-full py-3 text-sm font-medium bg-[color-mix(in_srgb,var(--color-purple)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-purple)_50%,transparent)] text-[var(--color-purple)] hover:bg-[color-mix(in_srgb,var(--color-purple)_20%,transparent)] transition-all disabled:opacity-50"
                       >
-                        {isGenerating ? 'Generating...' : 'Generate Artwork'}
-                      </Button>
+                        {isGenerating ? 'Generating...' : './generate_artwork.sh'}
+                      </button>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {/* Error Display */}
               {error && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
-                  {error}
+                <div className="p-3 bg-red-500/10 border border-red-500/30 border-l-2 border-l-red-500 text-red-500 text-sm">
+                  ERROR: {error}
                 </div>
               )}
             </div>
@@ -369,102 +384,93 @@ export default function AIArtVaultPage() {
               {isGenerating && <GenerationProgress isGenerating={isGenerating} />}
 
               {generatedImage && currentStep === 'encode' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Your Artwork</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="relative aspect-square rounded-lg overflow-hidden border">
+                <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+                  <div className="border-b border-[var(--color-border-subtle)] px-4 py-3">
+                    <span className="text-sm text-[var(--color-text-secondary)]">Generated Artwork</span>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="relative aspect-square overflow-hidden border border-[var(--color-border-subtle)]">
                       <img src={generatedImage} alt="Generated" className="w-full h-full object-cover" />
                     </div>
 
-                    <Button
+                    <button
                       onClick={handleEncode}
                       disabled={isEncoding || !backendAvailable}
-                      size="lg"
-                      className="w-full"
+                      className="w-full py-3 text-sm font-medium bg-[color-mix(in_srgb,var(--color-cyan)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-cyan)_50%,transparent)] text-[var(--color-cyan)] hover:bg-[color-mix(in_srgb,var(--color-cyan)_20%,transparent)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <Lock className="w-4 h-4 mr-2" />
-                      {isEncoding ? 'Encoding...' : 'Hide Voice Message in Artwork'}
-                    </Button>
-                  </CardContent>
-                </Card>
+                      <Lock className="w-4 h-4" />
+                      {isEncoding ? 'Encoding...' : './encode_audio.sh'}
+                    </button>
+                  </div>
+                </div>
               )}
 
               {isEncoding && (
-                <Card className="border-2 border-primary">
-                  <CardContent className="p-6">
-                    <div className="text-center space-y-3">
-                      <div className="text-4xl">🔒</div>
-                      <div className="font-semibold">Hiding Your Voice Message</div>
-                      <div className="text-sm text-muted-foreground">
-                        Using LSB steganography to embed audio in image pixels...
-                      </div>
+                <div className="bg-[var(--color-surface-elevated)] border-2 border-[color-mix(in_srgb,var(--color-cyan)_50%,transparent)]">
+                  <div className="p-6 text-center space-y-3">
+                    <Lock className="w-10 h-10 text-[var(--color-cyan)] mx-auto animate-pulse" />
+                    <div className="font-semibold text-[var(--color-text-primary)]">Hiding Your Voice Message</div>
+                    <div className="text-sm text-[var(--color-text-muted)]">
+                      Using LSB steganography to embed audio in image pixels...
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {encodedImage && currentStep === 'complete' && (
-                <Card className="border-2 border-green-500">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Lock className="w-5 h-5 text-green-500" />
-                      Secret Artwork Created!
-                    </CardTitle>
-                    <CardDescription>
-                      Your voice message is now hidden inside this beautiful artwork
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-green-500">
+                <div className="bg-[var(--color-surface-elevated)] border-2 border-green-500/50">
+                  <div className="border-b border-green-500/30 px-4 py-3 flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-[var(--color-green)]" />
+                    <span className="text-sm text-[var(--color-green)]">SECRET_ARTWORK_CREATED</span>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="relative aspect-square overflow-hidden border-2 border-green-500/30">
                       <img src={encodedImage} alt="Encoded" className="w-full h-full object-cover" />
                     </div>
 
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleDownloadImage(encodedImage, `zypher-secret-${Date.now()}.png`)}
-                        size="lg"
-                        className="flex-1"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download Secret Image
-                      </Button>
-                    </div>
+                    <button
+                      onClick={() => handleDownloadImage(encodedImage, `zypher-secret-${Date.now()}.png`)}
+                      className="w-full py-3 text-sm font-medium bg-green-500/10 border border-green-500/50 text-[var(--color-green)] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Secret Image
+                    </button>
 
-                    <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="p-4 bg-green-500/10 border border-green-500/30">
                       <div className="text-sm space-y-2">
-                        <div className="font-semibold text-green-900 dark:text-green-200">
-                          ✓ Success! Your voice message is hidden
+                        <div className="font-semibold text-[var(--color-green)]">
+                          &gt; Success! Voice message hidden
                         </div>
-                        <div className="text-green-800 dark:text-green-300">
+                        <div className="text-[var(--color-text-muted)]">
                           Share this image anywhere - only those with Zypher can extract the hidden audio.
-                          The image looks normal but contains your secret voice message!
                         </div>
                       </div>
                     </div>
 
-                    <Button onClick={handleReset} variant="outline" className="w-full">
+                    <button
+                      onClick={handleReset}
+                      className="w-full py-3 text-sm border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-default)] transition-all"
+                    >
                       Create Another
-                    </Button>
-                  </CardContent>
-                </Card>
+                    </button>
+                  </div>
+                </div>
               )}
 
               {!isGenerating && !generatedImage && !encodedImage && (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <ImageIcon className="w-10 h-10 text-muted-foreground" />
+                <div className="bg-[var(--color-surface-elevated)] border border-dashed border-[var(--color-border-default)]">
+                  <div className="p-12 text-center">
+                    <div className="w-20 h-20 bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] mx-auto flex items-center justify-center mb-4">
+                      <ImageIcon className="w-10 h-10 text-[var(--color-text-muted)]" />
                     </div>
-                    <h3 className="font-semibold mb-2">Follow the Workflow</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm">
+                    <h3 className="font-semibold text-[var(--color-text-primary)] mb-2">Follow the Workflow</h3>
+                    <p className="text-sm text-[var(--color-text-muted)] max-w-sm mx-auto">
                       {currentStep === 'record' && "Record or upload audio to begin"}
                       {currentStep === 'generate' && "Generate AI artwork for your voice message"}
                       {currentStep === 'encode' && "Encode your audio into the artwork"}
                     </p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -472,168 +478,151 @@ export default function AIArtVaultPage() {
       </div>
 
       {/* Decode Section */}
-      <div className="container mx-auto px-4 py-16 border-t">
+      <div className="container mx-auto px-4 py-16 border-t border-[var(--color-border-subtle)]">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-3">
-              <span className="bg-gradient-to-r from-destructive to-primary bg-clip-text text-transparent">
-                Extract Hidden Audio
-              </span>
+            <h2 className="text-3xl font-bold mb-3 text-[var(--color-text-primary)]">
+              <span className="text-[var(--color-text-muted)]">// </span>
+              <span className="text-[var(--color-pink)]">Extract Hidden Audio</span>
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-[var(--color-text-muted)] text-sm">
               Upload an encoded image to reveal and play the hidden voice message
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Upload Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload Encoded Image</CardTitle>
-                <CardDescription>
-                  Choose an image that contains a hidden audio message
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+            <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border-subtle)]">
+              <div className="border-b border-[var(--color-border-subtle)] px-4 py-3 flex items-center gap-2">
+                <Upload className="w-4 h-4 text-[var(--color-pink)]" />
+                <span className="text-sm text-[var(--color-text-secondary)]">Upload Encoded Image</span>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="border-2 border-dashed border-[var(--color-border-default)] p-8 text-center hover:border-[var(--color-pink)] transition-colors">
                   {uploadedImagePreview ? (
                     <div className="space-y-4">
                       <img
                         src={uploadedImagePreview}
                         alt="Uploaded"
-                        className="max-h-64 mx-auto rounded-lg"
+                        className="max-h-64 mx-auto"
                       />
-                      <Button
-                        variant="outline"
-                        size="sm"
+                      <button
                         onClick={() => {
                           setUploadedImage(null);
                           setUploadedImagePreview(null);
                           setDecodedAudio(null);
                         }}
+                        className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
                       >
                         Remove
-                      </Button>
+                      </button>
                     </div>
                   ) : (
-                    <label className="cursor-pointer">
+                    <label className="cursor-pointer block">
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/jpg"
                         onChange={handleImageUpload}
                         className="hidden"
                       />
-                      <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-sm font-medium mb-1">Click to upload image</p>
-                      <p className="text-xs text-muted-foreground">PNG or JPEG format</p>
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-[var(--color-text-muted)]" />
+                      <p className="text-sm font-medium text-[var(--color-text-primary)] mb-1">Click to upload image</p>
+                      <p className="text-xs text-[var(--color-text-muted)]">PNG or JPEG format</p>
                     </label>
                   )}
                 </div>
 
-                <Button
+                <button
                   onClick={handleDecode}
                   disabled={!uploadedImage || isDecoding || !backendAvailable}
-                  size="lg"
-                  className="w-full"
+                  className="w-full py-3 text-sm font-medium bg-[color-mix(in_srgb,var(--color-pink)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-pink)_50%,transparent)] text-[var(--color-pink)] hover:bg-[color-mix(in_srgb,var(--color-pink)_20%,transparent)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  <Lock className="w-4 h-4 mr-2" />
-                  {isDecoding ? 'Extracting Audio...' : 'Extract Hidden Audio'}
-                </Button>
-              </CardContent>
-            </Card>
+                  <Lock className="w-4 h-4" />
+                  {isDecoding ? 'Extracting...' : './decode_audio.sh'}
+                </button>
+              </div>
+            </div>
 
             {/* Decode Result Section */}
             <div className="space-y-6">
               {isDecoding && (
-                <Card className="border-2 border-primary">
-                  <CardContent className="p-6">
-                    <div className="text-center space-y-3">
-                      <div className="text-4xl">🔓</div>
-                      <div className="font-semibold">Extracting Hidden Audio</div>
-                      <div className="text-sm text-muted-foreground">
-                        Reading steganographic data from image pixels...
-                      </div>
+                <div className="bg-[var(--color-surface-elevated)] border-2 border-[color-mix(in_srgb,var(--color-pink)_50%,transparent)]">
+                  <div className="p-6 text-center space-y-3">
+                    <Lock className="w-10 h-10 text-[var(--color-pink)] mx-auto animate-pulse" />
+                    <div className="font-semibold text-[var(--color-text-primary)]">Extracting Hidden Audio</div>
+                    <div className="text-sm text-[var(--color-text-muted)]">
+                      Reading steganographic data from image pixels...
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {decodedAudio && (
-                <Card className="border-2 border-green-500">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Lock className="w-5 h-5 text-green-500" />
-                      Audio Extracted Successfully!
-                    </CardTitle>
-                    <CardDescription>
-                      The hidden voice message has been revealed
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="bg-muted rounded-lg p-6">
+                <div className="bg-[var(--color-surface-elevated)] border-2 border-green-500/50">
+                  <div className="border-b border-green-500/30 px-4 py-3 flex items-center gap-2">
+                    <Volume2 className="w-4 h-4 text-[var(--color-green)]" />
+                    <span className="text-sm text-[var(--color-green)]">AUDIO_EXTRACTED</span>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <div className="bg-[var(--color-surface-primary)] border border-[var(--color-border-subtle)] p-6">
                       <audio
                         ref={audioRef}
                         src={decodedAudio}
                         onEnded={() => setIsPlaying(false)}
                         className="hidden"
                       />
-                      <div className="flex items-center justify-center gap-4">
-                        <Button
-                          onClick={togglePlayPause}
-                          size="lg"
-                          variant="default"
-                          className="w-full"
-                        >
-                          {isPlaying ? (
-                            <>
-                              <Pause className="w-5 h-5 mr-2" />
-                              Pause
-                            </>
-                          ) : (
-                            <>
-                              <Play className="w-5 h-5 mr-2" />
-                              Play Audio
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                      <button
+                        onClick={togglePlayPause}
+                        className="w-full py-4 text-sm font-medium bg-green-500/10 border border-green-500/50 text-[var(--color-green)] hover:bg-green-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        {isPlaying ? (
+                          <>
+                            <Pause className="w-5 h-5" />
+                            Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-5 h-5" />
+                            Play Audio
+                          </>
+                        )}
+                      </button>
                     </div>
 
-                    <Button
+                    <button
                       onClick={handleDownloadAudio}
-                      variant="outline"
-                      className="w-full"
+                      className="w-full py-3 text-sm border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-default)] transition-all flex items-center justify-center gap-2"
                     >
-                      <Download className="w-4 h-4 mr-2" />
+                      <Download className="w-4 h-4" />
                       Download Audio
-                    </Button>
+                    </button>
 
-                    <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="p-4 bg-green-500/10 border border-green-500/30">
                       <div className="text-sm space-y-2">
-                        <div className="font-semibold text-green-900 dark:text-green-200">
-                          ✓ Decoding successful!
+                        <div className="font-semibold text-[var(--color-green)]">
+                          &gt; Decoding successful!
                         </div>
-                        <div className="text-green-800 dark:text-green-300">
+                        <div className="text-[var(--color-text-muted)]">
                           The secret voice message was hidden using LSB steganography and has been successfully extracted.
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {!isDecoding && !decodedAudio && (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-                      <Volume2 className="w-10 h-10 text-muted-foreground" />
+                <div className="bg-[var(--color-surface-elevated)] border border-dashed border-[var(--color-border-default)]">
+                  <div className="p-12 text-center">
+                    <div className="w-20 h-20 bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] mx-auto flex items-center justify-center mb-4">
+                      <Volume2 className="w-10 h-10 text-[var(--color-text-muted)]" />
                     </div>
-                    <h3 className="font-semibold mb-2">No Audio Extracted Yet</h3>
-                    <p className="text-sm text-muted-foreground max-w-sm">
+                    <h3 className="font-semibold text-[var(--color-text-primary)] mb-2">No Audio Extracted Yet</h3>
+                    <p className="text-sm text-[var(--color-text-muted)] max-w-sm mx-auto">
                       Upload an encoded image to extract and play the hidden audio message
                     </p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </div>
           </div>
