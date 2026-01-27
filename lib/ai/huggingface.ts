@@ -57,7 +57,7 @@ export async function generateImage(
     const generationTime = Date.now() - startTime;
 
     // Convert to blob and create URL
-    const blob = result;
+    const blob = result as unknown as Blob;
     const url = URL.createObjectURL(blob);
 
     return {
