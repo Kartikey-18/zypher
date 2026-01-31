@@ -175,6 +175,11 @@ def extract_audio_lsb(img: Image.Image) -> tuple[np.ndarray, int]:
     if framerate == 0 or sample_count == 0:
         return np.array([], dtype=np.int16), 44100
 
+    # Sanity check: sample_count shouldn't exceed available pixels
+    max_possible_samples = (len(flat_img) - 2) // 2
+    if sample_count > max_possible_samples:
+        raise ValueError("No valid audio data found in this image")
+
     # Calculate number of bytes to extract
     num_bytes = sample_count * 2  # 16-bit samples = 2 bytes each
 
@@ -186,8 +191,8 @@ def extract_audio_lsb(img: Image.Image) -> tuple[np.ndarray, int]:
             break
 
         # Reconstruct byte from R and G channels
-        high_nibble = flat_img[pixel_idx, 0] & 0x0F
-        low_nibble = flat_img[pixel_idx, 1] & 0x0F
+        high_nibble = int(flat_img[pixel_idx, 0]) & 0x0F
+        low_nibble = int(flat_img[pixel_idx, 1]) & 0x0F
         byte_val = (high_nibble << 4) | low_nibble
         extracted_bytes.append(byte_val)
 
