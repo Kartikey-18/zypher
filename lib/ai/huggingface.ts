@@ -5,8 +5,6 @@
  * Free tier: 1000 requests/month
  */
 
-import { HfInference } from '@huggingface/inference';
-
 export interface GenerateImageOptions {
   prompt: string;
   negativePrompt?: string;
@@ -25,7 +23,7 @@ export interface GeneratedImage {
 }
 
 /**
- * Generate image using Hugging Face Inference API
+ * Generate image using Hugging Face Serverless Inference API (free tier)
  */
 export async function generateImage(
   options: GenerateImageOptions,
@@ -33,53 +31,62 @@ export async function generateImage(
 ): Promise<GeneratedImage> {
   const startTime = Date.now();
 
-  // Use API token from parameter or environment
   const token = apiToken || process.env.HUGGING_FACE_TOKEN;
 
   if (!token) {
     throw new Error('Hugging Face API token not configured');
   }
 
-  const hf = new HfInference(token);
-
   try {
-    // Generate image using FLUX (schnell is a fast model with max 4 steps)
-    const result = await hf.textToImage({
-      model: 'black-forest-labs/FLUX.1-schnell',
-      inputs: options.prompt,
-      parameters: {
-        width: options.width || 1024,
-        height: options.height || 1024,
-        num_inference_steps: 4,
+    const response = await fetch(
+      'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: options.prompt,
+          parameters: {
+            width: options.width || 1024,
+            height: options.height || 1024,
+            num_inference_steps: 4,
+          },
+        }),
       }
-    });
+    );
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData.error || `HTTP ${response.status}`;
+
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid API token. Please check your configuration.');
+      }
+      if (response.status === 503) {
+        throw new Error('Model is loading. Please try again in a moment.');
+      }
+
+      throw new Error(`API error: ${errorMsg}`);
+    }
+
+    const blob = await response.blob();
     const generationTime = Date.now() - startTime;
-
-    // Convert to blob and create URL
-    const blob = result as unknown as Blob;
-    const url = URL.createObjectURL(blob);
 
     return {
       blob,
-      url,
+      url: '',
       width: options.width || 1024,
       height: options.height || 1024,
-      generationTime
+      generationTime,
     };
 
   } catch (error: any) {
     console.error('Hugging Face API error:', error);
-
-    // Handle specific errors
-    if (error.message?.includes('rate limit')) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-
-    if (error.message?.includes('authorization')) {
-      throw new Error('Invalid API token. Please check your configuration.');
-    }
-
     throw new Error(`Image generation failed: ${error.message || 'Unknown error'}`);
   }
 }
