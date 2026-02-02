@@ -157,14 +157,14 @@ def extract_audio_lsb(img: Image.Image) -> tuple[np.ndarray, int]:
     # Flatten image for easier indexing
     flat_img = img_array.reshape(-1, 3)
 
-    # Extract metadata from first 2 pixels
+    # Extract metadata from first 2 pixels (cast to Python int to avoid numpy overflow)
     # Pixel 0: framerate_khz (R), sample_count byte 0 (G), sample_count byte 1 (B)
     # Pixel 1: sample_count byte 2 (R), sample_count byte 3 (G), unused (B)
-    framerate_khz = flat_img[0, 0]
-    sample_count_byte0 = flat_img[0, 1]
-    sample_count_byte1 = flat_img[0, 2]
-    sample_count_byte2 = flat_img[1, 0]
-    sample_count_byte3 = flat_img[1, 1]
+    framerate_khz = int(flat_img[0, 0])
+    sample_count_byte0 = int(flat_img[0, 1])
+    sample_count_byte1 = int(flat_img[0, 2])
+    sample_count_byte2 = int(flat_img[1, 0])
+    sample_count_byte3 = int(flat_img[1, 1])
 
     framerate = framerate_khz * 1000
     sample_count = (sample_count_byte0 |
@@ -183,8 +183,8 @@ def extract_audio_lsb(img: Image.Image) -> tuple[np.ndarray, int]:
     # Calculate number of bytes to extract
     num_bytes = sample_count * 2  # 16-bit samples = 2 bytes each
 
-    # Extract bytes from pixels
-    extracted_bytes = []
+    # Extract bytes from pixels using bytearray for efficiency
+    extracted = bytearray(num_bytes)
     for i in range(num_bytes):
         pixel_idx = i + 2  # +2 to skip metadata pixels
         if pixel_idx >= len(flat_img):
@@ -193,11 +193,10 @@ def extract_audio_lsb(img: Image.Image) -> tuple[np.ndarray, int]:
         # Reconstruct byte from R and G channels
         high_nibble = int(flat_img[pixel_idx, 0]) & 0x0F
         low_nibble = int(flat_img[pixel_idx, 1]) & 0x0F
-        byte_val = (high_nibble << 4) | low_nibble
-        extracted_bytes.append(byte_val)
+        extracted[i] = (high_nibble << 4) | low_nibble
 
     # Convert bytes to uint16 samples
-    samples_unsigned = np.frombuffer(bytes(extracted_bytes[:num_bytes]), dtype=np.uint16)
+    samples_unsigned = np.frombuffer(bytes(extracted), dtype=np.uint16)
 
     # Convert back to signed int16
     samples = (samples_unsigned.astype(np.int32) - 32768).astype(np.int16)
