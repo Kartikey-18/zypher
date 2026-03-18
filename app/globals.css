@@ -552,3 +552,19 @@
 .stagger-3 { animation-delay: 0.3s; }
 .stagger-4 { animation-delay: 0.4s; }
 .stagger-5 { animation-delay: 0.5s; }
+
+/* Magnifying glass animation */
+@keyframes magnify {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(20px, 10px) scale(1.05);
+  }
+  50% {
+    transform: translate(-10px, 20px) scale(1);
+  }
+  75% {
+    transform: translate(15px, -5px) scale(1.05);
+  }
+}

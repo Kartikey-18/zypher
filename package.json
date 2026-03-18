@@ -1,7 +1,7 @@
 {
   "name": "zypher",
   "version": "1.0.0",
-  "description": "Privacy Technology Demonstration Platform - ZKP Authentication, AI Art, and Audio Steganography",
+  "description": "AI Art Generation and Audio Steganography - Hide voice messages in AI-generated artwork",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,6 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "sharp": "^0.34.5",
-    "snarkjs": "^0.7.3",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
