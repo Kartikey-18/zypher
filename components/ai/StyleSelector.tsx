@@ -24,32 +24,17 @@ export default function StyleSelector({
             key={style.id}
             onClick={() => onStyleChange(style.id)}
             disabled={disabled}
-            className={`p-4 rounded-lg border-2 transition-all text-left ${
+            className={`p-3 rounded-lg border-2 transition-all text-center ${
               selectedStyle === style.id
                 ? 'border-primary bg-primary/5'
                 : 'border-border hover:border-primary/50 hover:bg-accent'
             } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           >
-            <div className="text-3xl mb-2">{style.emoji}</div>
-            <div className="font-semibold text-sm mb-1">{style.name}</div>
-            <div className="text-xs text-muted-foreground line-clamp-2">
-              {style.description}
-            </div>
+            <div className="text-2xl mb-1">{style.emoji}</div>
+            <div className="font-semibold text-xs">{style.name}</div>
           </button>
         ))}
       </div>
-
-      {/* Selected Style Info */}
-      {selectedStyle && (
-        <div className="p-3 bg-muted rounded-lg">
-          <div className="text-sm">
-            <span className="font-semibold">Example: </span>
-            <span className="text-muted-foreground">
-              {styles.find(s => s.id === selectedStyle)?.example}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

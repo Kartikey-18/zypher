@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Download, Info, Zap, Lock, Image as ImageIcon, Upload, Play, Pause, Volume2, Terminal, Mic, Sparkles } from "lucide-react";
+import { ArrowLeft, Download, Info, Lock, Image as ImageIcon, Upload, Play, Pause, Volume2, Terminal, Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
 import StyleSelector from "@/components/ai/StyleSelector";
 import PromptInput from "@/components/ai/PromptInput";
@@ -235,8 +235,8 @@ export default function AIArtVaultPage() {
           </Link>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-[var(--color-purple)]" />
-              <span className="text-sm text-[var(--color-text-secondary)]">AI_ART_VAULT</span>
+              <Terminal className="w-4 h-4 text-[var(--color-cyan)]" />
+              <span className="text-sm text-[var(--color-text-secondary)]">ZYPHER</span>
             </div>
             <ThemeToggle />
           </div>
@@ -249,8 +249,7 @@ export default function AIArtVaultPage() {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-3 text-[var(--color-text-primary)]">
               <span className="text-[var(--color-text-muted)]">// </span>
-              <span className="text-[var(--color-cyan)]">AI Art</span>
-              <span className="text-[var(--color-text-primary)]"> Voice Vault</span>
+              <span className="text-[var(--color-cyan)]">ZYPHER</span>
             </h1>
             <p className="text-[var(--color-text-muted)] text-sm max-w-2xl mx-auto">
               Record a voice message, generate AI artwork, and hide your audio inside the image using steganography.
@@ -311,20 +310,6 @@ export default function AIArtVaultPage() {
             </div>
           )}
 
-          {/* Rate Limit Banner */}
-          <div className="mb-6 p-4 bg-[var(--color-surface-secondary)] border border-[var(--color-border-subtle)] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-yellow-500" />
-              <span className="text-sm text-[var(--color-text-secondary)]">
-                AI Generations: <span className="text-[var(--color-text-primary)]">{rateLimit.remaining}/{rateLimit.total}</span>
-              </span>
-            </div>
-            {rateLimit.remaining === 0 && (
-              <span className="text-xs text-[var(--color-text-muted)]">
-                Resets in: {getTimeUntilReset()}
-              </span>
-            )}
-          </div>
 
           {/* Main Content */}
           <div className="grid lg:grid-cols-2 gap-8">
